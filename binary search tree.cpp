@@ -1,4 +1,5 @@
 #include <iostream>
+#include <random>
 
 
 template <typename T>
@@ -237,30 +238,7 @@ public:
 };
 
 
-// template <typename T>
-// class SearchTree {
-// public:
-//     SearchTreeNode<T>* rootNode;
-
-// public:
-//     SearchTree(T rootValue) {
-//         rootNode = new SearchTreeNode<T>(rootValue);
-//     }
-
-
-// // MARK: Queries
-// public:
-//     void inorderTreeWalk() {
-//         if (rootNode) {
-//             SearchTreeNode::inorderTreeWalk(rootNode->leftChild);
-//             std::cout << rootNode->value << " " << std::flush;
-//             SearchTreeNode::inorderTreeWalk(rootNode->rightChild);
-//         }
-//     }
-// };
-
-
-int main() {
+void test1() {
     auto rootNode = new SearchTreeNode<int>(8);
 
     // SearchTreeNode<int>::insertRecursively(rootNode, 6);
@@ -298,6 +276,29 @@ int main() {
     }
     SearchTreeNode<int>::inorderTreeWalk(rootNode);
     std::cout << std::endl;
+}
+
+void test2() {
+    auto rootNode = new SearchTreeNode<int>(6);
+
+    auto randomSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+
+    auto uniformDistribution = std::uniform_int_distribution(1, 99);
+    auto generator = std::default_random_engine(randomSeed);
+
+    auto dice = std::bind(uniformDistribution, generator);
+
+    for (int i = 0; i < 10; i += 1) {
+        int num = dice();
+        SearchTreeNode<int>::insertIteratively(rootNode, num);
+        SearchTreeNode<int>::inorderTreeWalk(rootNode);
+        std::cout << std::endl;
+    }
+}
+
+
+int main() {
+    test2();
 
     return 0;
 }
