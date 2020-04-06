@@ -93,7 +93,7 @@ public:
         }
 
         if (currentNode->leftChild) {
-            return SearchTreeNode::getMin(currentNode->leftChild);
+            return SearchTreeNode::getMax(currentNode->leftChild);
         }
 
         // Find the first ancestor with the current node as right child.
@@ -112,7 +112,7 @@ public:
         }
 
         if (currentNode->rightChild) {
-            return SearchTreeNode::getMax(currentNode->rightChild);
+            return SearchTreeNode::getMin(currentNode->rightChild);
         }
 
         // Find the first ancestor with the current node as left child.
