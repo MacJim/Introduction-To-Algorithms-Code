@@ -308,7 +308,7 @@ private:
     }
 
 public:
-    RBNode* insert(int newValue) {
+    RBNode* insertValue(int newValue) {
         // 1. Create the new node.
         // The new node is by default red.
         auto newNode = new RBNode(newValue, true);
@@ -345,6 +345,158 @@ public:
 
         return newNode;
     }
+
+
+#pragma mark - Deletion
+private:
+    void transplantDuringDeletion(RBNode* oldNode, RBNode* newNode) {
+        if (oldNode->parent == RBNode::nilNode) {
+            rootNode = newNode;
+        } else if (oldNode == oldNode->parent->leftChild) {
+            oldNode->parent->leftChild = newNode;
+        } else {
+            oldNode->parent->rightChild = newNode;
+        }
+
+        newNode->parent = oldNode->parent;    // This also assigns the shared sentinel as the parent of the root node.
+    }
+
+    void fixUpDeletion(RBNode* x) {
+        while ((x != rootNode) && (!x->isRed)) {
+            if (x == x->parent->leftChild) {
+                /// Called `w` in the textbook.
+                auto sibling = x->parent->rightChild;
+                
+                if (sibling->isRed) {
+                    // Case 1 in textbook.
+                    // Preprocess. Rotate to produce a black sibling.
+                    // Sibling is red. Thus parent must be black. Sibling's children must be black.
+
+                    sibling->isRed = false;
+                    x->parent->isRed = true;
+                    rotateLeft(x->parent);
+                    // The new black sibling.
+                    sibling = x->parent->rightChild;
+                }
+
+                if ((!sibling->leftChild->isRed) && (!sibling->rightChild->isRed)) {
+                    // Case 2 in textbook.
+                    sibling->isRed = true;
+                    x = x->parent;
+                    continue;
+                } else {
+                    if (!sibling->rightChild->isRed) {
+                        // Case 3 in textbook.
+                        // Preprocess. Turns the sibling's right child into a red node.
+                        sibling->leftChild->isRed = false;
+                        sibling->isRed = true;
+                        rotateRight(sibling);
+                        sibling = x->parent->rightChild;
+                    }
+
+                    // Case 4 in textbook.
+                    sibling->isRed = x->parent->isRed;
+                    x->parent->isRed = false;    // This adds an additional black node to the left subtree.
+                    sibling->rightChild->isRed = false;    // Adds a new black node on the right subtree as compensation.
+                    rotateLeft(x->parent);
+                    
+                    x = rootNode;    // This makes no sense but to terminate the while loop...
+                }
+            } else {
+                auto sibling = x->parent->leftChild;
+
+                if (sibling->isRed) {
+                    sibling->isRed = false;
+                    x->parent->isRed = true;
+                    rotateRight(x->parent);
+                    sibling = x->parent->leftChild;
+                }
+
+                if ((!sibling->leftChild->isRed) && (!sibling->rightChild->isRed)) {
+                    sibling->isRed = true;
+                    x = x->parent;
+                    continue;
+                } else {
+                    if (!sibling->leftChild->isRed) {
+                        sibling->rightChild->isRed = false;
+                        sibling->isRed = true;
+                        rotateLeft(sibling);
+                        sibling = x->parent->leftChild;
+                    }
+
+                    sibling->isRed = x->parent->isRed;
+                    x->parent->isRed = false;
+                    sibling->leftChild->isRed = false;
+                    rotateRight(x->parent);
+
+                    x = rootNode;
+                }
+            }
+        }
+
+        x->isRed = false;    // x is either root or a red node that compensates for black loss.
+    }
+
+public:
+    void deleteNode(RBNode* z) {
+        /// The node that moves into `y`'s original location.
+        RBNode* x = nullptr;
+
+        /**
+         * The removed node or the replacement node, depending on the case.
+         * 
+         * If this is a black node, we'll need to re-evaluate the Red Black Tree properties.
+         */
+        auto y = z;
+        bool isYOriginallyRed = y->isRed;
+
+        if (z->leftChild == RBNode::nilNode) {
+            // y represents the removed node (the same as z).
+            x = z->rightChild;
+            transplantDuringDeletion(z, z->rightChild);
+        } else if (z->rightChild == RBNode::nilNode) {
+            // y represents the removed node (the same as z).
+            x = z->leftChild;
+            transplantDuringDeletion(z, z->leftChild);
+        } else {
+            // y represents the node that replaces z.
+            y = RBTree::getMinNodeOfSubtree(z->rightChild);
+            isYOriginallyRed = y->isRed;
+
+            // We are sure here that y must not have a left child.
+            // So x here is either y's right child or the nil sentinel.
+            x = y->rightChild;
+
+            if (y->parent == z) {
+                x->parent = y;
+            } else {
+                transplantDuringDeletion(y, y->rightChild);
+                y->rightChild = z->rightChild;
+                y->rightChild->parent = y;
+            }
+
+            transplantDuringDeletion(z, y);
+            y->leftChild = z->leftChild;
+            y->leftChild->parent = y;
+            y->isRed = z->isRed;
+        }
+
+        if (!isYOriginallyRed) {
+            fixUpDeletion(x);
+        }
+
+        delete z;
+    }
+
+    bool deleteValue(int value) {
+        auto node = searchForValue(value);
+        if (node == RBNode::nilNode) {
+            return false;
+        } else {
+            deleteNode(node);
+            return true;
+        }
+    }
 };
 
 
@@ -373,7 +525,7 @@ void testInsertion1() {
     // auto tree = std::unique_ptr<RBTree>(new RBTree());
     auto tree = new RBTree();
     for (const int& num: nums) {
-        auto newNode = tree->insert(num);
+        auto newNode = tree->insertValue(num);
         std::cout << "New value: " << newNode->value << std::endl;
 
         auto result = tree->inOrderWalk();
@@ -405,7 +557,7 @@ void testInsertion2() {
 
     for (int i = 0; i < 20; i += 1) {
         const auto num = dice();
-        auto newNode = tree->insert(num);
+        auto newNode = tree->insertValue(num);
 
         std::cout << "New value: (" << num << ", " << newNode->value << ")" << std::endl;
 
@@ -416,11 +568,53 @@ void testInsertion2() {
     delete tree;
 }
 
+#pragma mark Insertion and Deletion
+void testInsertionAndDeletion() {
+    auto tree = new RBTree();
+
+    auto nums = std::vector<int>(1000);
+    std::iota(nums.begin(), nums.end(), 1);    // 1 ~ 1000
+
+    auto randomSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    auto generator = std::default_random_engine(randomSeed);
+
+    for (int i = 0; i < 100; i += 1) {
+        auto numsCopy = nums;
+
+        std::shuffle(numsCopy.begin(), numsCopy.end(), generator);
+        for (const auto& num: numsCopy) {
+            tree->insertValue(num);
+            // printVector(tree->inOrderWalk());
+        }
+        auto result1 = tree->inOrderWalk();
+        if (result1 == nums) {
+            std::cout << "Insertion success! ";
+        } else {
+            std::cout << "Insertion failed. ";
+        }
+
+        std::shuffle(numsCopy.begin(), numsCopy.end(), generator);
+        for (const auto& num: numsCopy) {
+            tree->deleteValue(num);
+            // printVector(tree->inOrderWalk());
+        }
+        auto result2 = tree->inOrderWalk();
+        if (result2.size() == 0) {
+            std::cout << "Deletion success!" << std::endl;
+        } else {
+            std::cout << "Deletion failed." << std::endl;
+        }
+    }
+
+    delete tree;
+}
+
 
 int main() {
     // auto tree = new RBTree();
     // std::cout << RBNode::nilNode->isRed << std::endl;
-    testInsertion1();
+    // testInsertion1();
+    testInsertionAndDeletion();
 
     return 0;
 }
